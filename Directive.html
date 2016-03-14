@@ -1,0 +1,128 @@
+<!doctype html>
+<html ng-app="form-example1">
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+        <link href="../bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen">
+        <script src="JS/angular.min.js"></script>
+    </head>
+    <body>
+        <div>
+            <form name="myForm" class="css-form" ng-init="length=2"novalidate>
+                <div>
+                    整数(0-10):
+                    <input type="number" ng-model="size" name="size" min="0" max="10" integer/>
+                    {{size}}
+                    <br/>
+                    <span ng-show="myForm.size.$error.integer">不是合法的整数！</span>
+                    <span ng-show="myForm.size.$error.min || myForm.size.$error.max">
+                        数值必须位于0到10之间！
+                    </span>
+                </div>
+                <div>
+                    浮点数:
+                    <input type="text" ng-model="length" name="length" smart-float="1" />
+                        {{length}}
+                    <br/>
+                    <span ng-show="myForm.length.$error.float">不是合法的浮点数！</span>
+                </div>
+                <div>
+                    远程校验:
+                    <input type="text" ng-model="remote" name="remote" remote-validation />
+                        {{remote}}
+                    <br/>
+                    <span ng-show="myForm.remote.$error.remote">非法数据！</span>
+                </div>
+            </form>
+        </div>
+    </body>
+ 
+<script type = "text/javascript">
+var app = angular.module('form-example1', []);
+
+
+var FLOAT_REGEXP = /^\-?\d+((\.|\,)\d+)?$/;
+app.directive('ngFloat', function() {
+    return {
+	    restrict : 'A',
+        require : '?ngModel',
+        link : function(scope, elm, attrs, ctrl) {
+		    if(!ctrl) 
+			  return;
+			
+            var precision = parseInt(attrs.ngFloat) || 2 ;
+			if(precision < 1)
+			   precision = 2;
+			
+			elm.off('blur').on('blur',function(){
+			   var fmtVal=parseFloat(ctrl.$modelValue) || 0,
+			       precisionVal=fmtVal.toFixed(precision);
+			   elm.val(precisionVal);
+			   //ctrl.$setViewValue(precisionVal);
+			});
+			
+			ctrl.$parsers.unshift(function(val) {
+			    var isFloat=(val*1).toString() != 'NaN',
+				    dotIndex=val.indexOf('.'),
+					valLength=val.length;
+				
+				if(isFloat){
+				   if(dotIndex<0)
+				      return val;
+				   if(dotIndex > -1 && dotIndex + precision + 1 >= valLength)
+				      return val;
+				}
+				
+				if(!isFloat&&val=='-')
+				   return val;
+			
+			    var floatVal =  val*1 || 0,
+				    formatVal = floatVal.toFixed(precision);
+				elm.val(formatVal);
+				return formatVal;
+			});
+        }
+    };
+});
+
+var INTEGER_REGEXP = /^\-?\d*$/;
+app.directive('integer', function() {
+    return {
+        require : 'ngModel',
+        link : function(scope, elm, attrs, ctrl) {
+            ctrl.$parsers.unshift(function(viewValue) {
+                if (INTEGER_REGEXP.test(viewValue)) {
+                    ctrl.$setValidity('integer', true);
+                    return viewValue;
+                } else {
+                    ctrl.$setValidity('integer', false);
+                    return undefined;
+                }
+            });
+        }
+    };
+});
+
+
+app.directive('remoteValidation', function($http) {
+    return {
+        require : 'ngModel',
+        link : function(scope, elm, attrs, ctrl) {
+            elm.bind('keyup', function() {
+                $http({method: 'GET', url: 'FormValidation.jsp'}).
+                success(function(data, status, headers, config) {
+                    if(parseInt(data)==0){
+                        ctrl.$setValidity('remote',true);
+                    }else{
+                        ctrl.$setValidity('remote',false);
+                    }
+                }).
+                error(function(data, status, headers, config) {
+                    ctrl.$setValidity('remote', false);
+                });
+            });
+        }
+    };
+});
+</script>
+
+</html>
